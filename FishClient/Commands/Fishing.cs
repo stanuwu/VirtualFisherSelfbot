@@ -1,11 +1,13 @@
-﻿using System.Data;
-using System.Security.AccessControl;
+﻿using System.Diagnostics;
+using System.Drawing;
+using System.Net;
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
 using FishClient.Core;
 using FishClient.Reflect;
 using FishClient.Selfbot;
+using FishClient.Solver;
 using FishClient.Util;
 
 namespace FishClient.Commands;
@@ -18,6 +20,14 @@ public class Fishing : ModuleBase<SocketCommandContext>, IInit
     private static bool _runCe;
     private static bool _runFish;
     private static ISocketMessageChannel? _channel;
+    private static TextCaptcha _captcha = new TextCaptcha();
+    
+    [Command("setChannel")]
+    [Summary("Set the channel.")]
+    public async Task SetChannelAsync(string? args = null)
+    {
+        _channel = Context.Channel;
+    }
     
     [Command("ceStart")]
     [Summary("Start the coinflip exploit.")]
@@ -68,7 +78,7 @@ public class Fishing : ModuleBase<SocketCommandContext>, IInit
                 }
                 if (!_runCe) continue;
                 InteractionCommand cmd = new InteractionCommand(574652751745777665,
-                    ((SocketTextChannel) _channel!).Guild.Id,
+                    ((SocketTextChannel) _channel).Guild.Id,
                     _channel.Id,
                     Accessor.GetPrivateField<string>(FishClientBot.Client!, "_sessionId"),
                     1090392072328052752,
@@ -98,7 +108,7 @@ public class Fishing : ModuleBase<SocketCommandContext>, IInit
                 if(!_runFish) continue;
                 if(_channel == null) continue;
                 InteractionCommand cmd = new InteractionCommand(574652751745777665,
-                    ((SocketTextChannel) _channel!).Guild.Id,
+                    ((SocketTextChannel) _channel).Guild.Id,
                     _channel.Id,
                     Accessor.GetPrivateField<string>(FishClientBot.Client!, "_sessionId"),
                     1090392072281919609,
@@ -110,7 +120,7 @@ public class Fishing : ModuleBase<SocketCommandContext>, IInit
                 if (chance > 450)
                 {
                     InteractionCommand cmd2 = new InteractionCommand(574652751745777665,
-                        ((SocketTextChannel) _channel!).Guild.Id,
+                        ((SocketTextChannel) _channel).Guild.Id,
                         _channel.Id,
                         Accessor.GetPrivateField<string>(FishClientBot.Client!, "_sessionId"),
                         1090392072281919610,
@@ -122,6 +132,50 @@ public class Fishing : ModuleBase<SocketCommandContext>, IInit
                         new((int)ApplicationCommandOptionType.String, "amount", "all")
                     };
                     Interactions.SendInteraction(cmd2, options2);
+                }
+            }
+        });
+        
+        Task.Run(async () =>
+        {
+            while (true)
+            {
+                if(_channel == null) continue;
+                await Task.Delay(5000);
+                List<IMessage> messages = new List<IMessage>();
+                foreach (IReadOnlyCollection<IMessage> msgs in await _channel.GetMessagesAsync(25).ToListAsync())
+                {
+                    messages.AddRange(msgs);
+                }
+                foreach (var message in messages)
+                {
+                    if (message.Embeds.Count < 1) continue;
+                    IEmbed embed = message.Embeds.First();
+                    if (embed.Title.Contains("Anti-bot") && embed.Author!.Value.Name == FishClientBot.Client!.CurrentUser.Username)
+                    {
+                        WebClient client = new WebClient();
+                        Stream stream = client.OpenRead(embed.Image!.Value.Url);
+                        Bitmap image = new Bitmap(stream);
+                        string solved = _captcha.Solve(image);
+                        await stream.FlushAsync();
+                        stream.Close();
+                        client.Dispose();
+                        InteractionCommand cmd = new InteractionCommand(574652751745777665,
+                            ((SocketTextChannel) _channel!).Guild.Id,
+                            _channel.Id,
+                            Accessor.GetPrivateField<string>(FishClientBot.Client, "_sessionId"),
+                            1090392072428720230,
+                            912432961222238220,
+                            "verify",
+                            1);
+                        List<InteractionCommandOption> options = new List<InteractionCommandOption>()
+                        {
+                            new((int)ApplicationCommandOptionType.String, "answer", solved)
+                        };
+                        Interactions.SendInteraction(cmd, options);
+                        await Task.Delay(50000);
+                        break;
+                    }
                 }
             }
         });
