@@ -100,7 +100,7 @@ public class Fishing : ModuleBase<SocketCommandContext>, IInit
             {
                 Random random = new Random();
                 int chance = random.Next(0, 500);
-                int d = 3550;
+                int d = 3750;
                 if (chance > 250) d += random.Next(100, 300);
                 if (chance > 400) d += random.Next(500, 2000);
                 if (chance > 498) d += random.Next(200000, 400000);
